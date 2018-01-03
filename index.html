@@ -20,11 +20,6 @@
 		After generation key is not extractable (underlying key details cannot be accessed by the JavaScript / WebApp).
 	</p>
 	<p>
-		As long as the server does not have access to the key password or underlying key then there should be no way for it to read 
-		any document encrypted with that key. This applies to anyone managing to obtain documents from the server. However were the server
-		to return malicious JavaScript it could have the client download the file, decrypt it and then return it.
-	</p>
-	<p>
 		Data is encrypted with AES-CBC using a 256 bit key and random IV. The IV should be stored along with the encrypted data.
 	</p>
 </div>
