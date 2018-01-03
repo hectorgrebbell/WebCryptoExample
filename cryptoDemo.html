@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script type="text/javascript" src="crypto.js"></script>
+</head>
+<body>
+<p>
+  <input type="text" id="cleartext" value="Top Secret Message">
+  <input id = "encrypt" type="submit" value="Encrypt" onclick="encrypt_data();" disabled><br><br>
+  <label>Encrypted Text (hex)</label><br>
+  <input type="text" id="encrypted"><br>
+  <label>IV (hex)</label><br>
+  <input type="text" id="iv">
+  <input id = "decrypt" type="submit" value="Decrypt" onclick="decrypt_data();" disabled>
+  <br><br>
+  <input id = "removeKey" type="submit" value="Remove Key" onclick="remove_key();" disabled>
+  <input id = "newKey" type="submit" value="New Key" onclick="fromPassword();">
+</p>
+<p id="keyStatus">No Key Available</p>
+<div>
+	<p>
+		Key is generated using PBKDF2 from the supplied password and stored in the browser AppData. The salt used can be found
+		under _defaultSalt in crypto.js. With the same salt the same password will always produce the same key.
+		Persistence is not guaranteed however with semi-regular use it should only be deleted if the user wipes the browser AppData.
+		After generation key is not extractable (underlying key details cannot be accessed by the JavaScript / WebApp).
+	</p>
+	<p>
+		As long as the server does not have access to the key password or underlying key then there should be no way for it to read 
+		any document encrypted with that key. This applies to anyone managing to obtain documents from the server. However were the server
+		to return malicious JavaScript it could have the client download the file, decrypt it and then return it.
+	</p>
+	<p>
+		Data is encrypted with AES-CBC using a 256 bit key and random IV. The IV should be stored along with the encrypted data.
+	</p>
+</div>
+<script>
+var locale = navigator.languages != undefined ?
+				navigator.languages[0] :
+				navigator.language;
+
+function _getTimeStamp() {
+	return new Date().toLocaleString(locale);
+}
+
+var mrKeyName = 'MarkhamRae';
+var mrKey = null;
+
+function fromPassword() {
+	var password = prompt("Please enter key derivation password. This should be at least 10 characters - ideally random. Unicode is supported.");
+	if (password !== null)
+	{
+		deriveKey(password)
+			.then(function(keyObject) {
+				mrKey = keyObject;
+				saveKey(mrKeyName, keyObject)
+					.then(function() {
+						document.getElementById('keyStatus').textContent  = "Key generated: " + _getTimeStamp();
+						document.getElementById('encrypt').disabled = false;
+						document.getElementById('decrypt').disabled = false;
+						document.getElementById('removeKey').disabled = false;
+						document.getElementById('newKey').disabled = true;
+					});
+			}).catch(function(err) {
+				alert(err);
+			});
+	}
+};
+
+loadKey(mrKeyName)
+	.then(function(key) {
+		if (key === null) {
+			fromPassword();
+		}
+		else {
+			mrKey = key;
+			document.getElementById('keyStatus').textContent  = "Key loaded: " + _getTimeStamp();
+			document.getElementById('encrypt').disabled = false;
+			document.getElementById('decrypt').disabled = false;
+			document.getElementById('removeKey').disabled = false;
+			document.getElementById('newKey').disabled = true;
+		}
+	});
+	
+function encrypt_data() {
+	var data = stringToUtf8ByteArray(document.getElementById('cleartext').value);
+	
+	encryptData(mrKey, data).then(function(encryptedData) {
+		document.getElementById('cleartext').value = "";
+		document.getElementById('encrypted').value = byteArrayToHexString(new Uint8Array(encryptedData.data));
+		document.getElementById('iv').value = byteArrayToHexString(encryptedData.iv);
+	});
+};
+
+function decrypt_data() {
+	var encryptedData = hexStringToByteArray(document.getElementById('encrypted').value);
+	var iv_plain = document.getElementById('iv').value;
+	var iv = hexStringToByteArray(document.getElementById('iv').value);	
+	document.getElementById('cleartext').value = "";
+	
+	decryptData(mrKey, iv, encryptedData).then(function(data) {
+		document.getElementById('cleartext').value = utf8ByteArrayToString(new Uint8Array(data));
+	}).catch(function (err) {
+		document.getElementById('cleartext').value = "[Error - Wrong Key?]: " + err;
+	});
+};
+
+function remove_key() {
+	deleteKey(mrKeyName).then(
+		new Promise(function(resolve, reject) {
+			document.getElementById('keyStatus').textContent = 'No Key Available';
+			document.getElementById('encrypt').disabled = true;
+			document.getElementById('decrypt').disabled = true;
+			document.getElementById('removeKey').disabled = true;
+			document.getElementById('newKey').disabled = false;
+		})
+	);
+}
+
+</script>
+</body>
+</html>
