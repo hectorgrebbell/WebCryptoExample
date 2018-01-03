@@ -111,9 +111,6 @@ function _openDb()
 		open.onupgradeneeded = function() {
 			_db_handle = open.result;
 			var transaction = _db_handle.createObjectStore(_store_name, {keyPath: "id"});
-			transaction.oncomplete = function() {
-				resolve();
-			}
 		};
 		
 		open.onsuccess = function() {
